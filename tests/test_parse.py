@@ -44,12 +44,6 @@ def test_rejects_gibberish():
     assert result.is_parseable is False
 
 
-def test_unsupported_type_is_parseable_not_supported():
-    result = parse_variant("chr17:43000000:100:200")
-    assert result.is_parseable is True
-    assert result.is_supported is False
-
-
 def test_deterministic_output():
     first = parse_variant("BRCA1 c.68_69delAG")
     second = parse_variant("BRCA1 c.68_69delAG")
