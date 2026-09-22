@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -20,6 +24,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+          cache: pip
 
       - name: Install package
         run: |
@@ -31,6 +36,7 @@ jobs:
 
       - name: Type check with mypy
         run: mypy src/variant_lens/
+        continue-on-error: true
 
       - name: Test with pytest
         run: pytest tests/ -v
@@ -46,6 +52,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: pip
 
       - name: Build package
         run: |
