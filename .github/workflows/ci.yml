@@ -2,41 +2,32 @@ name: CI
 
 on:
   push:
-    branches:
-      - main
+    branches: ["main"]
   pull_request:
-    branches:
-      - main
+    branches: ["main"]
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
 
-      - name: Show Python
-        run: |
-          python --version
-          python -m pip --version
-
-      - name: Upgrade pip
-        run: python -m pip install --upgrade pip
-
       - name: Install package
-        run: python -m pip install -e .
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
 
-      - name: Install test dependencies
-        run: python -m pip install pytest
+      - name: Verify install
+        run: |
+          python -c "import variant_lens; print('variant_lens', variant_lens.__version__)"
 
-      - name: Show installed packages
-        run: python -m pip list
-
-      - name: Run tests
-        run: python -m pytest -vv -s
+      - name: Test
+        run: |
+          python -m pytest tests/ -v --tb=short
