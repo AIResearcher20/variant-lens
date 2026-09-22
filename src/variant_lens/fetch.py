@@ -70,7 +70,7 @@ def _fetch_one(
     key = f"{source}:{hgvs}:v1"
     cached = cache.get(key)
     if cached is not None:
-        return _make_entry(source, hgvs, cached, from_cache=True)
+        return _make_entry(source, hgvs, cached)
 
     payload = _fetch_with_retries(source, hgvs)
 
@@ -80,14 +80,14 @@ def _fetch_one(
         return _make_empty_entry(source, hgvs)
 
     cache.set(key, payload)
-    return _make_entry(source, hgvs, payload, from_cache=False)
+    return _make_entry(source, hgvs, payload)
 
 
 def _fetch_with_retries(source: str, hgvs: str) -> dict[str, Any] | None:
     for attempt in range(FETCH_RETRIES):
         try:
             return _fetch_source(source, hgvs)
-        except (requests.RequestException, ValueError) as exc:
+        except (requests.RequestException, ConnectionError, ValueError) as exc:
             logger.warning(
                 "Fetch attempt %d for %s failed: %s", attempt + 1, source, exc
             )
@@ -127,7 +127,6 @@ def _make_entry(
     source: str,
     hgvs: str,
     payload: dict[str, Any],
-    from_cache: bool,
 ) -> RawEvidence:
     canonical = json.dumps(payload, sort_keys=True)
     response_hash = hashlib.sha256(canonical.encode()).hexdigest()
