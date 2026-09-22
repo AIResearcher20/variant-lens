@@ -20,10 +20,10 @@ def determine_scope(
 
     Returns (ScopeStatus, AfStatus). Never raises.
     """
-    af_status = _determine_af_status(evidence)
-
     if not parsed.is_parseable:
-        return ScopeStatus.UNCERTAIN, af_status
+        return ScopeStatus.UNCERTAIN, AfStatus.SOURCE_UNAVAILABLE
+
+    af_status = _determine_af_status(evidence)
 
     if not parsed.is_supported:
         return ScopeStatus.OUT_OF_SCOPE_TYPE, af_status
@@ -72,7 +72,10 @@ def _extract_af(evidence: list[RawEvidence]) -> float | None:
     if af is None:
         return None
 
-    return float(af)
+    try:
+        return float(af)
+    except (TypeError, ValueError):
+        return None
 
 
 def _find_source(
