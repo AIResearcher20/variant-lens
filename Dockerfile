@@ -8,5 +8,8 @@ COPY src/ ./src/
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -e .
 
+RUN useradd --create-home --shell /bin/bash appuser
+USER appuser
+
 ENTRYPOINT ["variant-lens"]
 CMD ["--help"]
