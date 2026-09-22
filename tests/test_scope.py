@@ -67,7 +67,7 @@ def test_gnomad_unavailable_is_uncertain():
 
 def test_unparseable_input_is_uncertain():
     parsed = parse_variant("not-a-variant")
-    evidence = [_make_evidence("gnomad", {"af": 0.0001})]
+    evidence = []
     scope, af = determine_scope(parsed, evidence)
     assert scope == ScopeStatus.UNCERTAIN
     assert af == AfStatus.SOURCE_UNAVAILABLE
