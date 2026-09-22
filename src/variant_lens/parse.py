@@ -9,7 +9,7 @@ from __future__ import annotations
 import re
 
 from .schema import ParsedVariant, VariantType, Warning
-from .warnings import w001_parse_failed, w105_unsupported_type
+from .warnings import w001_parse_failed
 
 
 _HGVS_RE = re.compile(
@@ -35,7 +35,7 @@ def parse_variant(input_variant: str) -> ParsedVariant:
     Returns a ParsedVariant. Never raises for malformed input.
     """
     if not isinstance(input_variant, str) or not input_variant.strip():
-        return _unparseable(input_variant, "empty or non-string input")
+        return _unparseable(input_variant, reason="empty or non-string input")
 
     text = input_variant.strip()
 
@@ -47,7 +47,7 @@ def parse_variant(input_variant: str) -> ParsedVariant:
     if vcf_match:
         return _from_vcf(text, vcf_match)
 
-    return _unparseable(text, "unrecognized format")
+    return _unparseable(text, reason="unrecognized format")
 
 
 def _from_hgvs(text: str, match: re.Match) -> ParsedVariant:
@@ -95,7 +95,13 @@ def _from_vcf(text: str, match: re.Match) -> ParsedVariant:
 
 
 def _unparseable(text: str, reason: str) -> ParsedVariant:
-    warning = w001_parse_failed(text)
+    base = w001_parse_failed(text)
+    warning = Warning(
+        code=base.code,
+        message=base.message,
+        severity=base.severity,
+        context={**(base.context or {}), "reason": reason},
+    )
     return ParsedVariant(
         input_variant=text if isinstance(text, str) else str(text),
         normalized_hgvs=None,
