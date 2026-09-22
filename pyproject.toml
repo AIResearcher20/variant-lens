@@ -1,0 +1,5 @@
+[project]
+name = "variant-lens"
+version = "0.1.0"
+description = "A command-line tool for rare Mendelian variant interpretation using semantic search over biomedical literature."
+...
