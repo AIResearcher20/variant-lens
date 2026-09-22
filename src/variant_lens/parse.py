@@ -14,7 +14,7 @@ from .warnings import w001_parse_failed
 
 _HGVS_RE = re.compile(
     r"^(?P<gene>[A-Za-z0-9\-]+)\s+"
-    r"(?P<change>c\.[0-9_]+(?:del|ins|dup|>)[A-Za-z]*)$"
+    r"(?P<change>c\.[0-9_]+[A-Za-z>_]*)$"
 )
 
 _HGVS_SUBSTITUTION_RE = re.compile(r"^c\.[0-9]+[ACGT]>[ACGT]$")
