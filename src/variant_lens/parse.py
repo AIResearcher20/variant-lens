@@ -51,6 +51,7 @@ def parse_variant(input_variant: str) -> ParsedVariant:
 
 
 def _from_hgvs(text: str, match: re.Match) -> ParsedVariant:
+    """Build a ParsedVariant from a matched HGVS string."""
     gene = match.group("gene")
     change = match.group("change")
 
@@ -73,6 +74,7 @@ def _from_hgvs(text: str, match: re.Match) -> ParsedVariant:
 
 
 def _from_vcf(text: str, match: re.Match) -> ParsedVariant:
+    """Build a ParsedVariant from a matched VCF-style string."""
     ref = match.group("ref")
     alt = match.group("alt")
 
@@ -95,6 +97,7 @@ def _from_vcf(text: str, match: re.Match) -> ParsedVariant:
 
 
 def _unparseable(text: str, reason: str) -> ParsedVariant:
+    """Return a ParsedVariant marked as not parseable, with a coded warning."""
     base = w001_parse_failed(text)
     warning = Warning(
         code=base.code,
