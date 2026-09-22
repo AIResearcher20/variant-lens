@@ -14,5 +14,10 @@ dist
 .ruff_cache
 .coverage
 htmlcov
+*.ipynb
+.ipynb_checkpoints
+.env
+.env.*
 data/local
 *.snapshot
+tests/
