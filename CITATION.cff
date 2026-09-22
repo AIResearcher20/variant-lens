@@ -1,0 +1,16 @@
+cff-version: 1.2.0
+title: "VariantLens: A Command-Line Tool for Rare Mendelian Variant Interpretation"
+message: "If you use this tool in research, please cite it as below."
+type: software
+authors:
+  - family-names: Moafi 
+    given-names: Sepideh 
+repository-code: "https://github.com/AIResearcher20/variant-lens"
+license: Apache-2.0
+year: 2026
+keywords:
+  - genomics
+  - variant interpretation
+  - biomedical NLP
+  - retrieval
+  - Mendelian
