@@ -26,6 +26,7 @@ from .clinvar_bulk import (
     build_wanted_index,
     parse_citations,
     parse_variant_summary,
+    strip_deleted_bases,
 )
 
 
@@ -82,8 +83,10 @@ class ClinVarBulk:
         for variation_id, entry in self.summary.items():
             gene = entry.get("gene") or ""
             hgvs = entry.get("hgvs_c") or ""
-            if gene and hgvs:
-                self._index[(gene, hgvs)] = variation_id
+            if not gene or not hgvs:
+                continue
+            self._index[(gene, hgvs)] = variation_id
+            self._index[(gene, strip_deleted_bases(hgvs))] = variation_id
 
         self._loaded = True
 
@@ -97,14 +100,18 @@ class ClinVarBulk:
         """
         Return the VariationID for a gene and HGVS pair.
 
-        Only exact matches are accepted. When several rows share the
-        same gene and HGVS, the last one read is kept. In practice this
-        happens when a variant is registered under multiple transcripts,
-        and any of those identifiers points to the same citations.
+        Two forms are tried: the exact HGVS string and the form with
+        trailing nucleotide letters removed. This covers the case where
+        the caller writes c.68_69delAG and ClinVar stores c.68_69del.
         """
         if not self._loaded:
             self.load()
-        return self._index.get((gene, hgvs))
+
+        direct = self._index.get((gene, hgvs))
+        if direct is not None:
+            return direct
+
+        return self._index.get((gene, strip_deleted_bases(hgvs)))
 
     def get_linked_pmids(self, variation_id: str) -> list[str]:
         if not self._loaded:
