@@ -13,6 +13,7 @@
   "clinvar_linked_pmids": [
     "25394175"
   ],
+  "clinvar_complete": true,
   "reference_pmids": [],
   "pubmed_candidate_pmids": [],
   "candidate_pmids": [
