@@ -33,7 +33,7 @@ BASE_URL = "https://ftp.ncbi.nlm.nih.gov/pub/clinvar/tab_delimited"
 
 FILES = {
     "variant_summary.txt.gz": f"{BASE_URL}/variant_summary.txt.gz",
-    "var_citations.txt.gz": f"{BASE_URL}/var_citations.txt.gz",
+    "var_citations.txt": f"{BASE_URL}/var_citations.txt",
 }
 
 CHUNK_SIZE = 1024 * 1024
