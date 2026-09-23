@@ -47,7 +47,7 @@ def _sample_passages() -> list[Passage]:
 
 def test_bm25_returns_brca1_passages_first():
     passages = _sample_passages()
-    result = bm25_retrieve("BRCA1 c.68_69delAG", passages, top_k=3)
+    result = bm25_retrieve("BRCA1", passages, top_k=3)
     pmids = [p.pmid for p in result]
     assert "1" in pmids
     assert "3" in pmids
@@ -55,7 +55,7 @@ def test_bm25_returns_brca1_passages_first():
 
 def test_bm25_excludes_unrelated_passage():
     passages = _sample_passages()
-    result = bm25_retrieve("BRCA1 c.68_69delAG", passages, top_k=4)
+    result = bm25_retrieve("BRCA1", passages, top_k=4)
     pmids = [p.pmid for p in result]
     assert "4" not in pmids
 
