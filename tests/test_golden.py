@@ -11,8 +11,6 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-import pytest
-
 from variant_lens.golden import (
     build_evidence_record,
     is_reference_passage,
@@ -114,7 +112,7 @@ def test_is_reference_passage_empty_passage():
 
 @patch("variant_lens.golden.fetch_pubmed_candidates")
 @patch("variant_lens.golden.fetch_articles")
-@patch("variant_lens.golden.collect_clinvar_pmids")
+@patch("variant_lens.golden.fetch_clinvar_pmids")
 def test_build_evidence_record_full_flow(
     mock_clinvar,
     mock_fetch_articles,
@@ -123,6 +121,7 @@ def test_build_evidence_record_full_flow(
     mock_clinvar.return_value = {
         "uids": ["100"],
         "pmids": ["111", "222", "333"],
+        "complete": True,
     }
     mock_fetch_articles.return_value = [
         Passage(
@@ -164,6 +163,7 @@ def test_build_evidence_record_full_flow(
     assert record["gene"] == "BRCA1"
     assert record["clinvar_uids"] == ["100"]
     assert record["clinvar_linked_pmids"] == ["111", "222", "333"]
+    assert record["clinvar_complete"] is True
     assert record["reference_pmids"] == ["111"]
     assert record["pubmed_candidate_pmids"] == ["444"]
     assert record["candidate_pmids"] == ["111", "222", "333", "444"]
@@ -175,13 +175,13 @@ def test_build_evidence_record_full_flow(
 
 @patch("variant_lens.golden.fetch_pubmed_candidates")
 @patch("variant_lens.golden.fetch_articles")
-@patch("variant_lens.golden.collect_clinvar_pmids")
+@patch("variant_lens.golden.fetch_clinvar_pmids")
 def test_build_evidence_record_no_clinvar_match(
     mock_clinvar,
     mock_fetch_articles,
     mock_candidates,
 ):
-    mock_clinvar.return_value = {"uids": [], "pmids": []}
+    mock_clinvar.return_value = {"uids": [], "pmids": [], "complete": True}
     mock_fetch_articles.return_value = []
     mock_candidates.return_value = [
         Passage(pmid="555", title="Some article", abstract=None, year=2010),
@@ -195,6 +195,7 @@ def test_build_evidence_record_no_clinvar_match(
 
     assert record["clinvar_uids"] == []
     assert record["clinvar_linked_pmids"] == []
+    assert record["clinvar_complete"] is True
     assert record["reference_pmids"] == []
     assert record["pubmed_candidate_pmids"] == ["555"]
     assert record["candidate_pmids"] == ["555"]
@@ -202,7 +203,7 @@ def test_build_evidence_record_no_clinvar_match(
 
 @patch("variant_lens.golden.fetch_pubmed_candidates")
 @patch("variant_lens.golden.fetch_articles")
-@patch("variant_lens.golden.collect_clinvar_pmids")
+@patch("variant_lens.golden.fetch_clinvar_pmids")
 def test_build_evidence_record_no_reference_after_filter(
     mock_clinvar,
     mock_fetch_articles,
@@ -211,6 +212,7 @@ def test_build_evidence_record_no_reference_after_filter(
     mock_clinvar.return_value = {
         "uids": ["200"],
         "pmids": ["900", "901"],
+        "complete": True,
     }
     mock_fetch_articles.return_value = [
         Passage(
@@ -240,13 +242,17 @@ def test_build_evidence_record_no_reference_after_filter(
 
 @patch("variant_lens.golden.fetch_pubmed_candidates")
 @patch("variant_lens.golden.fetch_articles")
-@patch("variant_lens.golden.collect_clinvar_pmids")
+@patch("variant_lens.golden.fetch_clinvar_pmids")
 def test_candidate_pmids_deduplicated(
     mock_clinvar,
     mock_fetch_articles,
     mock_candidates,
 ):
-    mock_clinvar.return_value = {"uids": ["300"], "pmids": ["700", "701"]}
+    mock_clinvar.return_value = {
+        "uids": ["300"],
+        "pmids": ["700", "701"],
+        "complete": True,
+    }
     mock_fetch_articles.return_value = [
         Passage(pmid="700", title="c.68_69delAG in BRCA1", abstract=None, year=2000),
         Passage(pmid="701", title="Other BRCA1 variant", abstract=None, year=2001),
@@ -265,7 +271,34 @@ def test_candidate_pmids_deduplicated(
     assert record["candidate_pmids"] == ["700", "701", "702"]
 
 
-@patch("variant_lens.golden.collect_clinvar_pmids")
+@patch("variant_lens.golden.fetch_pubmed_candidates")
+@patch("variant_lens.golden.fetch_articles")
+@patch("variant_lens.golden.fetch_clinvar_pmids")
+def test_build_evidence_record_incomplete_clinvar(
+    mock_clinvar,
+    mock_fetch_articles,
+    mock_candidates,
+):
+    mock_clinvar.return_value = {
+        "uids": ["400"],
+        "pmids": [],
+        "complete": False,
+    }
+    mock_fetch_articles.return_value = []
+    mock_candidates.return_value = []
+
+    record = build_evidence_record(
+        variant_id="x",
+        gene="GENE",
+        hgvs="c.1A>T",
+    )
+
+    assert record["clinvar_uids"] == ["400"]
+    assert record["clinvar_linked_pmids"] == []
+    assert record["clinvar_complete"] is False
+
+
+@patch("variant_lens.golden.fetch_clinvar_pmids")
 @patch("variant_lens.golden.fetch_pubmed_candidates")
 def test_lookup_clinvar_disabled(mock_candidates, mock_clinvar):
     mock_candidates.return_value = []
@@ -277,4 +310,5 @@ def test_lookup_clinvar_disabled(mock_candidates, mock_clinvar):
     )
     assert record["clinvar_uids"] == []
     assert record["clinvar_linked_pmids"] == []
+    assert record["clinvar_complete"] is True
     mock_clinvar.assert_not_called()
