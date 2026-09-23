@@ -10,7 +10,7 @@ import typer
 
 from . import __version__
 from .annotate import AnnotationError, annotate
-from .fetch import get_raw_evidence
+from .fetch import fetch_pubmed_passages, get_raw_evidence
 from .parse import parse_variant
 from .rank import rerank
 from .report import generate, to_json
@@ -45,12 +45,16 @@ def interpret(
         "--top-k",
         help="Number of ranked passages to include.",
     ),
+    max_passages: int = typer.Option(
+        20,
+        "--max-passages",
+        help="Number of PubMed passages to retrieve.",
+    ),
 ) -> None:
     """
     Interpret a variant and write a JSON report.
 
     The pipeline runs parse, fetch, annotate, retrieve, rerank, and report.
-    Retrieval only runs when the variant is parseable and supported.
     """
     parsed = parse_variant(variant)
 
@@ -68,14 +72,17 @@ def interpret(
         typer.echo(f"Report written to {output}")
         return
 
-    passages = retrieve(
-        query=_build_query(annotation),
-        passages=[],
+    query = _build_query(annotation)
+    passages = fetch_pubmed_passages(query, max_results=max_passages)
+
+    retrieved = retrieve(
+        query=query,
+        passages=passages,
         strategy=RetrievalStrategy.BM25,
-        top_k=50,
+        top_k=max_passages,
     )
 
-    ranked = rerank(_build_query(annotation), passages, top_k=top_k)
+    ranked = rerank(query, retrieved, top_k=top_k)
 
     report = generate(annotation, ranked)
     output.write_text(to_json(report))
