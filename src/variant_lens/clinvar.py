@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 
 VARIANT_SUMMARY_FILENAME = "variant_summary.txt.gz"
-VAR_CITATIONS_FILENAME = "var_citations.txt.gz"
+VAR_CITATIONS_FILENAME = "var_citations.txt"
 
 
 class ClinVarBulk:
