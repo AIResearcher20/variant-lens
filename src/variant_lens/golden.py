@@ -33,6 +33,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from .clinvar import ClinVarBulk
+from .config import DEFAULT_PUBMED_CANDIDATES
 from .fetch import (
     fetch_pubmed_abstracts_by_pmids,
     fetch_pubmed_passages,
@@ -41,9 +42,6 @@ from .schema import Passage
 
 
 logger = logging.getLogger(__name__)
-
-
-DEFAULT_PUBMED_CANDIDATES = 50
 
 
 def _split_aliases(raw: str) -> list[str]:
