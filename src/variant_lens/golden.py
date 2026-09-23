@@ -16,11 +16,6 @@ The third is the variant itself. Its HGVS string is reduced to a small
 set of tokens, and those tokens are matched against titles and
 abstracts with word boundaries. Only articles that mention at least
 one of these tokens are kept in the reference set.
-
-The module does not make assumptions about network conditions for the
-ClinVar side. PubMed lookups are still performed over HTTP, but the
-number of requests is small. When a lookup fails, the corresponding
-list is left empty and a flag records that the record is incomplete.
 """
 
 from __future__ import annotations
@@ -31,7 +26,10 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from .clinvar import ClinVarBulk
-from .fetch import fetch_pubmed_passages
+from .fetch import (
+    fetch_pubmed_abstracts_by_pmids,
+    fetch_pubmed_passages,
+)
 from .schema import Passage
 
 
@@ -42,14 +40,6 @@ DEFAULT_PUBMED_CANDIDATES = 50
 
 
 def variant_tokens(hgvs: str) -> list[str]:
-    """
-    Reduce an HGVS string to a small set of searchable tokens.
-
-    The full HGVS is rarely written out in an abstract. Authors write
-    the short form, the position alone, or a legacy name. The tokens
-    returned here cover the common cases. Matching is later done with
-    word boundaries, so a token such as 68 will not match 680.
-    """
     tokens: list[str] = []
     seen: set[str] = set()
 
@@ -79,12 +69,6 @@ def variant_tokens(hgvs: str) -> list[str]:
 
 
 def mentions_variant(text: str, tokens: Iterable[str]) -> bool:
-    """
-    Return True when the text contains at least one variant token.
-
-    The match uses word boundaries so that partial overlaps, such as a
-    numeric prefix of a longer coordinate, do not count.
-    """
     if not text:
         return False
     for token in tokens:
@@ -103,19 +87,12 @@ def fetch_articles(pmids: list[str]) -> list[Passage]:
     """
     Retrieve passages for a specific list of PMIDs.
 
-    The fetch module exposes a query based search, not a direct lookup
-    by identifier. To fetch a known set of PMIDs, the identifiers are
-    joined into a single OR query. That form is accepted by PubMed and
-    returns the corresponding articles.
+    The fetch module batches the identifiers and caches the results, so
+    a second call with the same identifiers does not touch the network.
     """
     if not pmids:
         return []
-    query = " OR ".join(f"{pmid}[uid]" for pmid in pmids)
-    try:
-        return fetch_pubmed_passages(query, max_results=len(pmids))
-    except Exception as exc:
-        logger.warning("PubMed fetch failed: %s", exc)
-        return []
+    return fetch_pubmed_abstracts_by_pmids(pmids)
 
 
 def fetch_pubmed_candidates(query: str, max_results: int) -> list[Passage]:
@@ -134,14 +111,6 @@ def build_evidence_record(
     clinvar: ClinVarBulk | None,
     pubmed_candidates: int = DEFAULT_PUBMED_CANDIDATES,
 ) -> dict[str, Any]:
-    """
-    Assemble a single evidence record.
-
-    The ClinVar lookup is local and expected to succeed when the bulk
-    tables contain the variant. PubMed is queried over HTTP. Records
-    with an empty reference set or a missing ClinVar entry are still
-    returned. The caller decides what to do with them.
-    """
     query_base = f"{gene} {hgvs}".strip()
     query_full = f"{query_base} {phenotype}".strip() if phenotype else query_base
 
@@ -218,13 +187,6 @@ def build_all_records(
     bulk_dir: Path,
     pubmed_candidates: int = DEFAULT_PUBMED_CANDIDATES,
 ) -> list[dict[str, Any]]:
-    """
-    Build evidence records for every variant in the table.
-
-    The ClinVar bulk tables are loaded once and reused for all
-    variants. This keeps memory use bounded and avoids re-reading the
-    large files for each variant.
-    """
     clinvar = ClinVarBulk(bulk_dir=bulk_dir, variants=variants)
     clinvar.load()
 
