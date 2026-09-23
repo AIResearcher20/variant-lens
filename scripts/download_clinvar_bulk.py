@@ -10,13 +10,17 @@ from a scheduled workflow.
 The files are large. The variant summary is on the order of a few
 hundred megabytes compressed. The download is streamed to disk rather
 than held in memory.
+
+Downloads are retried a small number of times. The NCBI FTP site
+occasionally returns transient errors, particularly under load, and a
+short wait followed by another attempt resolves most of them.
 """
 
 from __future__ import annotations
 
 import argparse
 import logging
-import sys
+import time
 from pathlib import Path
 
 import requests
@@ -34,6 +38,8 @@ FILES = {
 
 CHUNK_SIZE = 1024 * 1024
 TIMEOUT = 60
+DOWNLOAD_ATTEMPTS = 3
+RETRY_DELAY = 5
 
 
 def _remote_size(url: str) -> int | None:
@@ -51,20 +57,30 @@ def _download(url: str, destination: Path) -> None:
     tmp = destination.with_suffix(destination.suffix + ".part")
     logger.info("downloading %s", url)
 
-    try:
-        with requests.get(url, stream=True, timeout=TIMEOUT) as response:
-            response.raise_for_status()
-            with tmp.open("wb") as handle:
-                for chunk in response.iter_content(chunk_size=CHUNK_SIZE):
-                    if chunk:
-                        handle.write(chunk)
-    except requests.RequestException as exc:
-        if tmp.exists():
-            tmp.unlink()
-        raise SystemExit(f"download failed for {url}: {exc}") from exc
-
-    tmp.replace(destination)
-    logger.info("saved %s", destination)
+    for attempt in range(1, DOWNLOAD_ATTEMPTS + 1):
+        try:
+            with requests.get(url, stream=True, timeout=TIMEOUT) as response:
+                response.raise_for_status()
+                with tmp.open("wb") as handle:
+                    for chunk in response.iter_content(chunk_size=CHUNK_SIZE):
+                        if chunk:
+                            handle.write(chunk)
+            tmp.replace(destination)
+            logger.info("saved %s", destination)
+            return
+        except requests.RequestException as exc:
+            logger.warning(
+                "attempt %d of %d failed for %s: %s",
+                attempt,
+                DOWNLOAD_ATTEMPTS,
+                url,
+                exc,
+            )
+            if attempt == DOWNLOAD_ATTEMPTS:
+                if tmp.exists():
+                    tmp.unlink()
+                raise SystemExit(f"download failed for {url}: {exc}") from exc
+            time.sleep(RETRY_DELAY)
 
 
 def ensure_file(url: str, destination: Path) -> None:
