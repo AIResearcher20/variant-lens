@@ -37,6 +37,10 @@ dev = [
 rerank = [
     "sentence-transformers>=2.5",
 ]
+retrieve = [
+    "sentence-transformers>=2.5",
+    "chromadb>=0.4",
+]
 
 [project.scripts]
 variant-lens = "variant_lens.cli:app"
