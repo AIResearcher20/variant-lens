@@ -1,0 +1,6 @@
+{
+  "variant_id": "brca1_c68_69delag",
+  "query": "BRCA1 c.68_69delAG hereditary breast and ovarian cancer",
+  "relevant_pmids": ["12345678", "23456789", "34567890"],
+  "notes": "Placeholder PMIDs. Replace with real PubMed IDs in Phase 2."
+}
