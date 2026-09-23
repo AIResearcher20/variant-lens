@@ -1,172 +1,213 @@
 """
-ClinVar lookups for the golden set.
+Build evidence records for the golden set.
 
-Given a variant in HGVS notation, this module finds the ClinVar record
-and returns the PubMed identifiers linked to that record. The linkage
-comes from NCBI elink, which exposes the same citation relationships
-that appear on the ClinVar page.
+For each variant, three sources are combined.
 
-NCBI asks that every E-utilities request carries a tool name and, when
-possible, a contact email. Both are read from the environment so that
-deployments and local runs behave the same way.
+The first is ClinVar. Its records link to PubMed articles, and those
+linkages are exposed through elink. The linked identifiers are useful,
+but they include articles that discuss the gene in general rather than
+the variant specifically. A filter is applied afterwards.
+
+The second is PubMed. A search based on gene and HGVS returns a wider
+set of articles, most of which will not concern the variant. These act
+as distractors for the retrieval benchmark.
+
+The third is the variant itself. Its HGVS string is reduced to a small
+set of tokens, and those tokens are matched against titles and
+abstracts with word boundaries. Only articles that mention at least
+one of these tokens are kept in the reference set.
+
+The module does not make assumptions about network conditions. When a
+ClinVar or PubMed lookup fails, the corresponding list is left empty
+and a flag records that the record is incomplete. The caller decides
+whether to keep such a record in the golden set.
 """
 
 from __future__ import annotations
 
 import logging
-import os
-import time
-from typing import Any
+import re
+from typing import Any, Iterable
 
-import requests
-
-from .config import FETCH_TIMEOUT
-from .fetch import FetchError
+from .clinvar import fetch_clinvar_pmids
+from .fetch import fetch_pubmed_passages
+from .schema import Passage
 
 
 logger = logging.getLogger(__name__)
 
 
-_EUTILS = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
-
-_TOOL = os.environ.get("NCBI_TOOL", "variant-lens")
-_EMAIL = os.environ.get("NCBI_EMAIL", "")
-_API_KEY = os.environ.get("NCBI_API_KEY", "")
-
-if not _EMAIL:
-    logger.warning(
-        "NCBI_EMAIL is not set. NCBI prefers a contact address for E-utilities."
-    )
-
-_PAUSE = 0.11 if _API_KEY else 0.34
+DEFAULT_PUBMED_CANDIDATES = 50
 
 
-def _shared_params() -> dict[str, str]:
-    params = {"tool": _TOOL}
-    if _EMAIL:
-        params["email"] = _EMAIL
-    if _API_KEY:
-        params["api_key"] = _API_KEY
-    return params
-
-
-def _pause() -> None:
-    time.sleep(_PAUSE)
-
-
-def _get(url: str, params: dict[str, str]) -> dict[str, Any]:
-    try:
-        response = requests.get(url, params=params, timeout=FETCH_TIMEOUT)
-        response.raise_for_status()
-    except requests.RequestException as exc:
-        raise FetchError(f"request to {url} failed: {exc}") from exc
-
-    _pause()
-
-    try:
-        return response.json()
-    except ValueError as exc:
-        raise FetchError(f"response from {url} was not valid JSON: {exc}") from exc
-
-
-def search_clinvar(hgvs: str, max_results: int = 5) -> list[str]:
+def variant_tokens(hgvs: str) -> list[str]:
     """
-    Return ClinVar UIDs that match the given HGVS string.
+    Reduce an HGVS string to a small set of searchable tokens.
 
-    The search is deliberately narrow: we pass the HGVS term as-is and
-    let ClinVar's own indexing decide what matches. Broadening the term
-    would pull in records for neighbouring variants and complicate the
-    downstream linkage step.
+    The full HGVS is rarely written out in an abstract. Authors write
+    the short form, the position alone, or a legacy name. The tokens
+    returned here cover the common cases. Matching is later done with
+    word boundaries, so a token such as 68 will not match 680.
     """
-    params = _shared_params()
-    params.update(
-        {
-            "db": "clinvar",
-            "term": hgvs,
-            "retmode": "json",
-            "retmax": str(max_results),
-        }
-    )
-
-    payload = _get(f"{_EUTILS}/esearch.fcgi", params)
-    return list(payload.get("esearchresult", {}).get("idlist", []))
-
-
-def get_clinvar_linked_pmids(clinvar_uid: str) -> list[str]:
-    """
-    Return PMIDs that ClinVar links to the given record.
-
-    elink is the intended interface for this. It returns the same
-    citation relationships shown on the ClinVar page, without us having
-    to parse the full XML record.
-    """
-    params = _shared_params()
-    params.update(
-        {
-            "dbfrom": "clinvar",
-            "db": "pubmed",
-            "id": clinvar_uid,
-            "retmode": "json",
-        }
-    )
-
-    payload = _get(f"{_EUTILS}/elink.fcgi", params)
-    return _extract_pmids(payload)
-
-
-def _extract_pmids(payload: dict[str, Any]) -> list[str]:
-    """
-    Pull PMIDs out of an elink response.
-
-    elink wraps the identifiers in a linkset. A single ClinVar record
-    can produce more than one linkset if the linkage exists through
-    multiple paths, so we walk all of them and de-duplicate.
-    """
-    pmids: list[str] = []
+    tokens: list[str] = []
     seen: set[str] = set()
 
-    for linkset in payload.get("linksets", []):
-        for linkdb in linkset.get("linksetdbs", []):
-            if linkdb.get("dbto") != "pubmed":
+    def add(value: str) -> None:
+        value = value.strip()
+        if value and value not in seen:
+            seen.add(value)
+            tokens.append(value)
+
+    add(hgvs)
+
+    body = hgvs
+    for prefix in ("c.", "g.", "m.", "n.", "p."):
+        if body.startswith(prefix):
+            body = body[len(prefix):]
+            break
+
+    add(body)
+
+    position_match = re.match(r"([0-9]+(?:_[0-9]+)?)", body)
+    if position_match:
+        add(position_match.group(1))
+        for part in position_match.group(1).split("_"):
+            add(part)
+
+    return tokens
+
+
+def mentions_variant(text: str, tokens: Iterable[str]) -> bool:
+    """
+    Return True when the text contains at least one variant token.
+
+    The match uses word boundaries so that partial overlaps, such as a
+    numeric prefix of a longer coordinate, do not count.
+    """
+    if not text:
+        return False
+    for token in tokens:
+        pattern = rf"\b{re.escape(token)}\b"
+        if re.search(pattern, text, flags=re.IGNORECASE):
+            return True
+    return False
+
+
+def is_reference_passage(passage: Passage, tokens: Iterable[str]) -> bool:
+    combined = f"{passage.title or ''} {passage.abstract or ''}"
+    return mentions_variant(combined, tokens)
+
+
+def fetch_articles(pmids: list[str]) -> list[Passage]:
+    """
+    Retrieve passages for a specific list of PMIDs.
+
+    The fetch module exposes a query based search, not a direct lookup
+    by identifier. To fetch a known set of PMIDs, the identifiers are
+    joined into a single OR query. That form is accepted by PubMed and
+    returns the corresponding articles.
+    """
+    if not pmids:
+        return []
+    query = " OR ".join(f"{pmid}[uid]" for pmid in pmids)
+    try:
+        return fetch_pubmed_passages(query, max_results=len(pmids))
+    except Exception as exc:
+        logger.warning("PubMed fetch failed: %s", exc)
+        return []
+
+
+def fetch_pubmed_candidates(query: str, max_results: int) -> list[Passage]:
+    try:
+        return fetch_pubmed_passages(query, max_results=max_results)
+    except Exception as exc:
+        logger.warning("PubMed candidate search failed: %s", exc)
+        return []
+
+
+def build_evidence_record(
+    variant_id: str,
+    gene: str,
+    hgvs: str,
+    phenotype: str = "",
+    pubmed_candidates: int = DEFAULT_PUBMED_CANDIDATES,
+    lookup_clinvar: bool = True,
+) -> dict[str, Any]:
+    """
+    Assemble a single evidence record.
+
+    The function performs the network calls, applies the variant filter
+    to the ClinVar linked identifiers, and merges everything into a
+    dictionary. Records with an empty reference set or an incomplete
+    ClinVar lookup are still returned. The caller decides what to do
+    with them.
+    """
+    query_base = f"{gene} {hgvs}".strip()
+    query_full = f"{query_base} {phenotype}".strip() if phenotype else query_base
+
+    if lookup_clinvar:
+        clinvar_result = fetch_clinvar_pmids(hgvs)
+        clinvar_uids = clinvar_result.get("uids", [])
+        clinvar_pmids = clinvar_result.get("pmids", [])
+        clinvar_complete = clinvar_result.get("complete", True)
+    else:
+        clinvar_uids = []
+        clinvar_pmids = []
+        clinvar_complete = True
+
+    tokens = variant_tokens(hgvs)
+
+    reference_pmids: list[str] = []
+    titles: dict[str, str] = {}
+    years: dict[str, int] = {}
+
+    if clinvar_pmids:
+        clinvar_passages = fetch_articles(clinvar_pmids)
+        by_pmid = {p.pmid: p for p in clinvar_passages if p.pmid}
+        for pmid in clinvar_pmids:
+            passage = by_pmid.get(pmid)
+            if passage is None:
                 continue
-            for raw in linkdb.get("links", []):
-                pmid = str(raw)
-                if pmid not in seen:
-                    seen.add(pmid)
-                    pmids.append(pmid)
+            if passage.title:
+                titles[pmid] = passage.title
+            if passage.year is not None:
+                years[pmid] = passage.year
+            if is_reference_passage(passage, tokens):
+                reference_pmids.append(pmid)
 
-    return pmids
-
-
-def fetch_clinvar_pmids(hgvs: str) -> dict[str, Any]:
-    """
-    Convenience wrapper: search ClinVar, then collect linked PMIDs.
-
-    A variant can appear in ClinVar more than once, for instance when
-    different submitters have filed separate records. We union the
-    PMIDs across all matches so that the caller does not have to think
-    about which record was chosen.
-
-    Returns a dictionary with two keys, ``uids`` and ``pmids``. The
-    ``uids`` list is kept for debugging and for the evidence file, so
-    that a later reader can trace which ClinVar records contributed.
-    """
-    uids = search_clinvar(hgvs)
-    if not uids:
-        return {"uids": [], "pmids": []}
-
-    collected: list[str] = []
-    seen: set[str] = set()
-
-    for uid in uids:
-        try:
-            pmids = get_clinvar_linked_pmids(uid)
-        except FetchError as exc:
-            logger.warning("elink failed for ClinVar uid %s: %s", uid, exc)
+    candidate_passages = fetch_pubmed_candidates(query_full, pubmed_candidates)
+    pubmed_candidate_pmids: list[str] = []
+    for passage in candidate_passages:
+        pmid = passage.pmid
+        if not pmid:
             continue
-        for pmid in pmids:
-            if pmid not in seen:
-                seen.add(pmid)
-                collected.append(pmid)
+        if pmid not in titles and passage.title:
+            titles[pmid] = passage.title
+        if passage.year is not None and pmid not in years:
+            years[pmid] = passage.year
+        pubmed_candidate_pmids.append(pmid)
 
-    return {"uids": uids, "pmids": collected}
+    candidate_pmids: list[str] = []
+    seen: set[str] = set()
+    for pmid in clinvar_pmids + pubmed_candidate_pmids:
+        if pmid and pmid not in seen:
+            seen.add(pmid)
+            candidate_pmids.append(pmid)
+
+    return {
+        "variant_id": variant_id,
+        "gene": gene,
+        "hgvs": hgvs,
+        "query": query_full,
+        "clinvar_uids": clinvar_uids,
+        "clinvar_linked_pmids": clinvar_pmids,
+        "clinvar_complete": clinvar_complete,
+        "reference_pmids": reference_pmids,
+        "pubmed_candidate_pmids": pubmed_candidate_pmids,
+        "candidate_pmids": candidate_pmids,
+        "titles": titles,
+        "years": years,
+        "label_source": "ClinVar-linked citations filtered by variant token",
+        "candidate_source": "ClinVar elink and PubMed esearch",
+        "notes": "auto-generated by prepare_golden_evidence",
+    }
