@@ -4,6 +4,11 @@ Fetch raw evidence from public APIs.
 Contacts MyVariant.info, gnomAD, and PubMed. Uses the local cache first.
 Never raises for individual source failures. Raises FetchError only when
 the fetch layer itself cannot operate.
+
+PubMed requests are paced conservatively and retried on transient
+failures. The default pacing leaves a wide margin below the NCBI rate
+limit so that a run over several hundred identifiers completes without
+being throttled.
 """
 
 from __future__ import annotations
@@ -40,17 +45,17 @@ _BASE_URLS = {
 }
 
 
+PUBMED_PAUSE = 1.0
+PUBMED_BATCH_SIZE = 50
+PUBMED_ATTEMPTS = 4
+PUBMED_BACKOFF_BASE = 5.0
+
+
 class FetchError(Exception):
     """Raised when the fetch layer itself cannot operate."""
 
 
 def get_raw_evidence(hgvs: str) -> list[RawEvidence]:
-    """
-    Fetch raw evidence for a variant.
-
-    Returns one RawEvidence per source. Sources that fail are recorded with
-    payload=None. Never raises for individual source failures.
-    """
     try:
         cache = Cache()
     except Exception as exc:
@@ -68,57 +73,103 @@ def fetch_pubmed_passages(
     query: str,
     max_results: int = 20,
 ) -> list[Passage]:
-    """
-    Fetch PubMed passages with full abstracts for a query.
-
-    Returns an empty list when no results are found or when PubMed is
-    unavailable.
-    """
     pmids = _pubmed_search(query, max_results)
     if not pmids:
         return []
-
     return _pubmed_fetch_abstracts(pmids)
 
 
-def _pubmed_search(query: str, max_results: int) -> list[str]:
-    try:
-        payload = _http_get_json(
-            _BASE_URLS["pubmed"],
-            params={
-                "db": "pubmed",
-                "term": query,
-                "retmode": "json",
-                "retmax": str(max_results),
-            },
-            timeout=FETCH_TIMEOUT,
-        )
-    except (requests.RequestException, ConnectionError, ValueError) as exc:
-        logger.warning("PubMed search failed: %s", exc)
+def fetch_pubmed_abstracts_by_pmids(pmids: list[str]) -> list[Passage]:
+    """
+    Fetch abstracts for a known list of PMIDs.
+
+    The identifiers are split into batches so that the request URL stays
+    within the length that NCBI accepts. Results are cached per batch,
+    so a second run over the same identifiers does not touch the network.
+    """
+    if not pmids:
         return []
 
-    result = payload.get("esearchresult", {})
-    return list(result.get("idlist", []))
+    cache = Cache()
+    passages: list[Passage] = []
+
+    for start in range(0, len(pmids), PUBMED_BATCH_SIZE):
+        batch = pmids[start:start + PUBMED_BATCH_SIZE]
+        batch_key = "pubmed:batch:" + ",".join(sorted(batch))
+        cached = cache.get(batch_key)
+        if cached is not None:
+            for item in cached.get("passages", []):
+                passages.append(Passage(**item))
+            continue
+
+        batch_passages = _fetch_batch(batch)
+        cache.set(batch_key, {
+            "passages": [
+                {
+                    "pmid": p.pmid,
+                    "title": p.title,
+                    "abstract": p.abstract,
+                    "year": p.year,
+                }
+                for p in batch_passages
+            ]
+        })
+        passages.extend(batch_passages)
+        time.sleep(PUBMED_PAUSE)
+
+    return passages
+
+
+def _pubmed_search(query: str, max_results: int) -> list[str]:
+    cache = Cache()
+    key = f"pubmed:search:{query}:{max_results}"
+    cached = cache.get(key)
+    if cached is not None:
+        return cached.get("pmids", [])
+
+    params = {
+        "db": "pubmed",
+        "term": query,
+        "retmode": "json",
+        "retmax": str(max_results),
+    }
+
+    payload = _request_with_retry(
+        _BASE_URLS["pubmed"],
+        params=params,
+        timeout=FETCH_TIMEOUT,
+        expect_json=True,
+    )
+    if payload is None:
+        return []
+
+    pmids = list(payload.get("esearchresult", {}).get("idlist", []))
+    cache.set(key, {"pmids": pmids})
+    return pmids
 
 
 def _pubmed_fetch_abstracts(pmids: list[str]) -> list[Passage]:
-    try:
-        response = requests.get(
-            _BASE_URLS["pubmed_fetch"],
-            params={
-                "db": "pubmed",
-                "id": ",".join(pmids),
-                "retmode": "xml",
-            },
-            timeout=FETCH_TIMEOUT * 2,
-        )
-        response.raise_for_status()
-    except (requests.RequestException, ConnectionError, ValueError) as exc:
-        logger.warning("PubMed fetch failed: %s", exc)
+    return fetch_pubmed_abstracts_by_pmids(pmids)
+
+
+def _fetch_batch(pmids: list[str]) -> list[Passage]:
+    params = {
+        "db": "pubmed",
+        "id": ",".join(pmids),
+        "retmode": "xml",
+    }
+
+    text = _request_with_retry(
+        _BASE_URLS["pubmed_fetch"],
+        params=params,
+        timeout=FETCH_TIMEOUT * 2,
+        expect_json=False,
+    )
+    if text is None:
         return []
 
     try:
-        root = ET.fromstring(response.text)
+        root = ET.fromstring(text)
     except ET.ParseError as exc:
         logger.warning("PubMed XML parse failed: %s", exc)
         return []
@@ -130,6 +181,44 @@ def _pubmed_fetch_abstracts(pmids: list[str]) -> list[Passage]:
             passages.append(passage)
 
     return passages
+
+
+def _request_with_retry(
+    url: str,
+    params: dict[str, str],
+    timeout: int,
+    expect_json: bool,
+) -> Any:
+    for attempt in range(1, PUBMED_ATTEMPTS + 1):
+        try:
+            response = requests.get(url, params=params, timeout=timeout)
+            if response.status_code in (429, 500, 502, 503, 504):
+                wait = PUBMED_BACKOFF_BASE * attempt
+                logger.warning(
+                    "NCBI returned %d on attempt %d, waiting %.1f seconds",
+                    response.status_code,
+                    attempt,
+                    wait,
+                )
+                time.sleep(wait)
+                continue
+            response.raise_for_status()
+        except requests.RequestException as exc:
+            logger.warning("request attempt %d failed: %s", attempt, exc)
+            if attempt == PUBMED_ATTEMPTS:
+                return None
+            time.sleep(PUBMED_BACKOFF_BASE * attempt)
+            continue
+
+        if expect_json:
+            try:
+                return response.json()
+            except ValueError as exc:
+                logger.warning("response was not JSON: %s", exc)
+                return None
+        return response.text
+
+    return None
 
 
 def _parse_pubmed_article(article: ET.Element) -> Passage | None:
@@ -180,11 +269,7 @@ def _extract_year(value: Any) -> int | None:
     return None
 
 
-def _fetch_one(
-    source: str,
-    hgvs: str,
-    cache: Cache,
-) -> RawEvidence:
+def _fetch_one(source: str, hgvs: str, cache: Cache) -> RawEvidence:
     key = f"{source}:{hgvs}:v1"
     cached = cache.get(key)
     if cached is not None:
@@ -241,11 +326,7 @@ def _http_get_json(
     return response.json()
 
 
-def _make_entry(
-    source: str,
-    hgvs: str,
-    payload: dict[str, Any],
-) -> RawEvidence:
+def _make_entry(source: str, hgvs: str, payload: dict[str, Any]) -> RawEvidence:
     canonical = json.dumps(payload, sort_keys=True)
     response_hash = hashlib.sha256(canonical.encode()).hexdigest()
     return RawEvidence(
