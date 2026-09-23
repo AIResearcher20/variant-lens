@@ -1,7 +1,14 @@
 """
 Default configuration for VariantLens.
 
-Environment variables override the defaults.
+Values are grouped into categories: paths and caching, fetch behaviour,
+retrieval parameters, and logging. Environment variables override the
+defaults so that deployments and tests can adjust behaviour without
+editing this file.
+
+Standard endpoint URLs and ClinVar file names are not listed here.
+They describe external contracts, not tunable behaviour, and are kept
+next to the modules that use them.
 """
 
 from __future__ import annotations
@@ -57,3 +64,35 @@ FETCH_RETRIES: int = _env_int("VARIANT_LENS_FETCH_RETRIES", 3)
 FETCH_TIMEOUT: int = _env_int("VARIANT_LENS_FETCH_TIMEOUT", 10)
 
 LOG_LEVEL: str = _env_str("VARIANT_LENS_LOG_LEVEL", "INFO")
+
+NCBI_TOOL: str = _env_str("NCBI_TOOL", "variant-lens")
+NCBI_EMAIL: str = _env_str("NCBI_EMAIL", "")
+NCBI_API_KEY: str = _env_str("NCBI_API_KEY", "")
+
+PUBMED_PAUSE_WITHOUT_KEY: float = _env_float(
+    "VARIANT_LENS_PUBMED_PAUSE_WITHOUT_KEY", 1.0
+)
+PUBMED_PAUSE_WITH_KEY: float = _env_float(
+    "VARIANT_LENS_PUBMED_PAUSE_WITH_KEY", 0.3
+)
+
+PUBMED_BATCH_SIZE: int = _env_int("VARIANT_LENS_PUBMED_BATCH_SIZE", 50)
+PUBMED_ATTEMPTS: int = _env_int("VARIANT_LENS_PUBMED_ATTEMPTS", 4)
+PUBMED_BACKOFF_BASE: float = _env_float(
+    "VARIANT_LENS_PUBMED_BACKOFF_BASE", 5.0
+)
+
+DEFAULT_PUBMED_CANDIDATES: int = _env_int(
+    "VARIANT_LENS_PUBMED_CANDIDATES", 50
+)
+
+
+def pubmed_pause() -> float:
+    """
+    Return the sleep interval between PubMed requests.
+
+    With an NCBI API key the documented rate limit rises from three to
+    ten requests per second. The interval is shortened but remains well
+    below the limit so that transient throttling stays rare.
+    """
+    return PUBMED_PAUSE_WITH_KEY if NCBI_API_KEY else PUBMED_PAUSE_WITHOUT_KEY
