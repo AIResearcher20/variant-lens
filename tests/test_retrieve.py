@@ -42,6 +42,26 @@ def _sample_passages() -> list[Passage]:
             "Unrelated study on protein folding",
             "Structural biology of a model protein.",
         ),
+        _make_passage(
+            "5",
+            "EGFR mutations in lung adenocarcinoma",
+            "Review of EGFR inhibitors.",
+        ),
+        _make_passage(
+            "6",
+            "KRAS signaling in pancreatic cancer",
+            "Study of KRAS pathway.",
+        ),
+        _make_passage(
+            "7",
+            "DNA repair mechanisms in yeast",
+            "Molecular biology of yeast.",
+        ),
+        _make_passage(
+            "8",
+            "Cardiac arrhythmia genetics",
+            "Study of inherited arrhythmias.",
+        ),
     ]
 
 
@@ -55,7 +75,7 @@ def test_bm25_returns_brca1_passages_first():
 
 def test_bm25_excludes_unrelated_passage():
     passages = _sample_passages()
-    result = bm25_retrieve("BRCA1", passages, top_k=4)
+    result = bm25_retrieve("BRCA1", passages, top_k=8)
     pmids = [p.pmid for p in result]
     assert "4" not in pmids
 
@@ -73,7 +93,7 @@ def test_bm25_returns_empty_for_empty_query():
 
 def test_bm25_respects_top_k():
     passages = _sample_passages()
-    result = bm25_retrieve("BRCA1 cancer variant", passages, top_k=2)
+    result = bm25_retrieve("BRCA1", passages, top_k=2)
     assert len(result) <= 2
 
 
