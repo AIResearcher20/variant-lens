@@ -26,6 +26,7 @@ classifiers = [
 dependencies = [
     "typer>=0.9",
     "requests>=2.31",
+    "rank-bm25>=0.2.2",
 ]
 
 [project.optional-dependencies]
