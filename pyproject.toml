@@ -34,6 +34,9 @@ dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
 ]
+rerank = [
+    "sentence-transformers>=2.5",
+]
 
 [project.scripts]
 variant-lens = "variant_lens.cli:app"
