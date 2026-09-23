@@ -1,7 +1,8 @@
 """
 Tests for PubMed passage fetching.
 
-The PubMed search and fetch functions are mocked directly.
+The search and batch fetch functions are replaced with fixed values so
+that the tests run without contacting NCBI.
 """
 
 from variant_lens.fetch import fetch_pubmed_passages
@@ -10,7 +11,7 @@ from variant_lens.schema import Passage
 
 _SEARCH_RESULT = ["12345678", "23456789"]
 
-_FETCH_RESULT = [
+_BATCH_RESULT = [
     Passage(
         pmid="12345678",
         title="BRCA1 variant in hereditary breast cancer",
@@ -32,8 +33,8 @@ def test_fetch_pubmed_passages_returns_passages(monkeypatch):
         lambda query, max_results: _SEARCH_RESULT,
     )
     monkeypatch.setattr(
-        "variant_lens.fetch._pubmed_fetch_abstracts",
-        lambda pmids: _FETCH_RESULT,
+        "variant_lens.fetch.fetch_pubmed_abstracts_by_pmids",
+        lambda pmids: _BATCH_RESULT,
     )
 
     passages = fetch_pubmed_passages("BRCA1", max_results=10)
@@ -50,8 +51,8 @@ def test_fetch_pubmed_passages_handles_missing_abstract(monkeypatch):
         lambda query, max_results: _SEARCH_RESULT,
     )
     monkeypatch.setattr(
-        "variant_lens.fetch._pubmed_fetch_abstracts",
-        lambda pmids: _FETCH_RESULT,
+        "variant_lens.fetch.fetch_pubmed_abstracts_by_pmids",
+        lambda pmids: _BATCH_RESULT,
     )
 
     passages = fetch_pubmed_passages("BRCA1", max_results=10)
