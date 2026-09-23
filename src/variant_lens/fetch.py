@@ -12,6 +12,7 @@ import hashlib
 import json
 import logging
 import time
+import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from typing import Any
 
@@ -68,7 +69,7 @@ def fetch_pubmed_passages(
     max_results: int = 20,
 ) -> list[Passage]:
     """
-    Fetch PubMed passages (title + abstract) for a query.
+    Fetch PubMed passages with full abstracts for a query.
 
     Returns an empty list when no results are found or when PubMed is
     unavailable.
@@ -77,8 +78,7 @@ def fetch_pubmed_passages(
     if not pmids:
         return []
 
-    records = _pubmed_summary(pmids)
-    return [_record_to_passage(record) for record in records]
+    return _pubmed_fetch_abstracts(pmids)
 
 
 def _pubmed_search(query: str, max_results: int) -> list[str]:
@@ -101,62 +101,82 @@ def _pubmed_search(query: str, max_results: int) -> list[str]:
     return list(result.get("idlist", []))
 
 
-def _pubmed_summary(pmids: list[str]) -> list[dict[str, Any]]:
+def _pubmed_fetch_abstracts(pmids: list[str]) -> list[Passage]:
     try:
-        payload = _http_get_json(
+        response = requests.get(
             _BASE_URLS["pubmed_fetch"],
             params={
                 "db": "pubmed",
                 "id": ",".join(pmids),
-                "retmode": "json",
+                "retmode": "xml",
             },
-            timeout=FETCH_TIMEOUT,
+            timeout=FETCH_TIMEOUT * 2,
         )
+        response.raise_for_status()
     except (requests.RequestException, ConnectionError, ValueError) as exc:
-        logger.warning("PubMed summary failed: %s", exc)
+        logger.warning("PubMed fetch failed: %s", exc)
         return []
 
-    result = payload.get("result", {})
-    records: list[dict[str, Any]] = []
+    try:
+        root = ET.fromstring(response.text)
+    except ET.ParseError as exc:
+        logger.warning("PubMed XML parse failed: %s", exc)
+        return []
 
-    for pmid in result.get("uids", []):
-        record = result.get(pmid)
-        if isinstance(record, dict):
-            record = dict(record)
-            record["pmid"] = pmid
-            records.append(record)
+    passages: list[Passage] = []
+    for article in root.findall(".//PubmedArticle"):
+        passage = _parse_pubmed_article(article)
+        if passage is not None:
+            passages.append(passage)
 
-    return records
+    return passages
 
 
-def _record_to_passage(record: dict[str, Any]) -> Passage:
-    year = _extract_year(record.get("pubdate"))
+def _parse_pubmed_article(article: ET.Element) -> Passage | None:
+    pmid = _text(article, ".//PMID")
+    if not pmid:
+        return None
+
+    title = _text(article, ".//ArticleTitle") or ""
+
+    abstract_parts: list[str] = []
+    for abstract_node in article.findall(".//AbstractText"):
+        text = "".join(abstract_node.itertext()).strip()
+        label = abstract_node.attrib.get("Label")
+        if label and text:
+            abstract_parts.append(f"{label}: {text}")
+        elif text:
+            abstract_parts.append(text)
+
+    abstract = " ".join(abstract_parts).strip() or None
+
+    year = _extract_year(_text(article, ".//PubDate/Year"))
+
     return Passage(
-        pmid=str(record.get("pmid", "")),
-        title=str(record.get("title", "")).strip(),
-        abstract=_extract_abstract(record.get("abstract")),
+        pmid=pmid,
+        title=title,
+        abstract=abstract,
         year=year,
     )
 
 
-def _extract_year(pubdate: Any) -> int | None:
-    if not isinstance(pubdate, str):
+def _text(node: ET.Element, path: str) -> str | None:
+    element = node.find(path)
+    if element is None:
         return None
-    for token in pubdate.split():
+    return "".join(element.itertext()).strip() or None
+
+
+def _extract_year(value: Any) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, int):
+        return value
+    if not isinstance(value, str):
+        return None
+    for token in value.split():
         if token.isdigit() and len(token) == 4:
             return int(token)
-    return None
-
-
-def _extract_abstract(abstract: Any) -> str | None:
-    if abstract is None:
-        return None
-    if isinstance(abstract, str):
-        return abstract.strip() or None
-    if isinstance(abstract, dict):
-        text = abstract.get("text")
-        if isinstance(text, str):
-            return text.strip() or None
     return None
 
 
