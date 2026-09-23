@@ -23,7 +23,7 @@ from .config import (
     FETCH_TIMEOUT,
     STRICT_FETCH,
 )
-from .schema import RawEvidence
+from .schema import Passage, RawEvidence
 
 
 logger = logging.getLogger(__name__)
@@ -35,6 +35,7 @@ _BASE_URLS = {
     "gnomad": "https://gnomad.broadinstitute.org/api",
     "clinvar": "https://myvariant.info/v1/query",
     "pubmed": "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi",
+    "pubmed_fetch": "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi",
 }
 
 
@@ -60,6 +61,103 @@ def get_raw_evidence(hgvs: str) -> list[RawEvidence]:
         evidence.append(entry)
 
     return evidence
+
+
+def fetch_pubmed_passages(
+    query: str,
+    max_results: int = 20,
+) -> list[Passage]:
+    """
+    Fetch PubMed passages (title + abstract) for a query.
+
+    Returns an empty list when no results are found or when PubMed is
+    unavailable.
+    """
+    pmids = _pubmed_search(query, max_results)
+    if not pmids:
+        return []
+
+    records = _pubmed_summary(pmids)
+    return [_record_to_passage(record) for record in records]
+
+
+def _pubmed_search(query: str, max_results: int) -> list[str]:
+    try:
+        payload = _http_get_json(
+            _BASE_URLS["pubmed"],
+            params={
+                "db": "pubmed",
+                "term": query,
+                "retmode": "json",
+                "retmax": str(max_results),
+            },
+            timeout=FETCH_TIMEOUT,
+        )
+    except (requests.RequestException, ConnectionError, ValueError) as exc:
+        logger.warning("PubMed search failed: %s", exc)
+        return []
+
+    result = payload.get("esearchresult", {})
+    return list(result.get("idlist", []))
+
+
+def _pubmed_summary(pmids: list[str]) -> list[dict[str, Any]]:
+    try:
+        payload = _http_get_json(
+            _BASE_URLS["pubmed_fetch"],
+            params={
+                "db": "pubmed",
+                "id": ",".join(pmids),
+                "retmode": "json",
+            },
+            timeout=FETCH_TIMEOUT,
+        )
+    except (requests.RequestException, ConnectionError, ValueError) as exc:
+        logger.warning("PubMed summary failed: %s", exc)
+        return []
+
+    result = payload.get("result", {})
+    records: list[dict[str, Any]] = []
+
+    for pmid in result.get("uids", []):
+        record = result.get(pmid)
+        if isinstance(record, dict):
+            record = dict(record)
+            record["pmid"] = pmid
+            records.append(record)
+
+    return records
+
+
+def _record_to_passage(record: dict[str, Any]) -> Passage:
+    year = _extract_year(record.get("pubdate"))
+    return Passage(
+        pmid=str(record.get("pmid", "")),
+        title=str(record.get("title", "")).strip(),
+        abstract=_extract_abstract(record.get("abstract")),
+        year=year,
+    )
+
+
+def _extract_year(pubdate: Any) -> int | None:
+    if not isinstance(pubdate, str):
+        return None
+    for token in pubdate.split():
+        if token.isdigit() and len(token) == 4:
+            return int(token)
+    return None
+
+
+def _extract_abstract(abstract: Any) -> str | None:
+    if abstract is None:
+        return None
+    if isinstance(abstract, str):
+        return abstract.strip() or None
+    if isinstance(abstract, dict):
+        text = abstract.get("text")
+        if isinstance(text, str):
+            return text.strip() or None
+    return None
 
 
 def _fetch_one(
