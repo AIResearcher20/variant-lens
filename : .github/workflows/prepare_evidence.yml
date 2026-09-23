@@ -1,0 +1,45 @@
+name: Prepare Golden Evidence
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install project
+        run: pip install -e .
+
+      - name: Generate evidence files
+        env:
+          NCBI_TOOL: variant-lens
+          NCBI_EMAIL: ${{ secrets.NCBI_EMAIL }}
+          NCBI_API_KEY: ${{ secrets.NCBI_API_KEY }}
+        run: python scripts/prepare_golden_evidence.py
+
+      - name: Show summary
+        run: |
+          echo "Files written:"
+          ls -1 data/gold_standard/evidence/
+
+      - name: Commit results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/gold_standard/evidence/
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "Regenerate golden evidence from ClinVar and PubMed"
+            git push
+          fi
