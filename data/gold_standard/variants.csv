@@ -1,11 +1,11 @@
-variant_id,gene,hgvs,chr,pos,ref,alt,af_gnomad,clinvar_significance,clinvar_review,phenotype
-brca1_c68_69delag,BRCA1,c.68_69delAG,17,43071077,C,T,0.0,Pathogenic,reviewed by expert panel,Hereditary breast and ovarian cancer
-tp53_c743g_a,TP53,c.743G>A,17,7676154,C,T,0.0,Pathogenic,criteria provided multiple submitters,Li-Fraumeni syndrome
-cftr_f508del,CFTR,c.1521_1523delCTT,7,117559590,CTT,C,0.0,Pathogenic,reviewed by expert panel,Cystic fibrosis
-hbb_c20a_t,HBB,c.20A>T,11,5227002,T,A,0.0,Pathogenic,criteria provided multiple submitters,Sickle cell disease
-brca2_c5946delt,BRCA2,c.5946delT,13,32340300,T,-,0.0,Pathogenic,criteria provided multiple submitters,Hereditary breast and ovarian cancer
-mlh1_c350c_t,MLH1,c.350C>T,3,37038110,C,T,0.0,Pathogenic,criteria provided multiple submitters,Lynch syndrome
-apoe_e4,APOE,c.388T>C,19,45411941,T,C,0.15,Risk factor,criteria provided,Alzheimer disease
-mthfr_c677t,MTHFR,c.665C>T,1,11856378,C,T,0.31,Benign,criteria provided multiple submitters,Homocystinuria
-cyp2c19_star2,CYP2C19,c.681G>A,10,96541616,G,A,0.15,Benign,criteria provided multiple submitters,Poor drug metabolism
-g6pd_c563c_t,G6PD,c.563C>T,X,154532432,C,T,0.02,Likely benign,criteria provided,G6PD deficiency
+variant_id,gene,hgvs,chr,pos,ref,alt,af_gnomad,clinvar_significance,clinvar_review,phenotype,aliases
+brca1_c68_69delag,BRCA1,c.68_69delAG,17,43071077,C,T,0.0,Pathogenic,reviewed by expert panel,Hereditary breast and ovarian cancer,185delAG|del185AG|c.68_69del|p.Glu23Valfs|5382insC|BIC:185
+tp53_c743g_a,TP53,c.743G>A,17,7676154,C,T,0.0,Pathogenic,criteria provided multiple submitters,Li-Fraumeni syndrome,p.R248Q|R248Q|c.743A>G|p.Arg248Gln
+cftr_f508del,CFTR,c.1521_1523delCTT,7,117559590,CTT,C,0.0,Pathogenic,reviewed by expert panel,Cystic fibrosis,F508del|deltaF508|F508|Phe508del|p.Phe508del|c.1521_1523del
+hbb_c20a_t,HBB,c.20A>T,11,5227002,T,A,0.0,Pathogenic,criteria provided multiple submitters,Sickle cell disease,HbS|Sickle|E6V|Glu6Val|p.Glu6Val|Hemoglobin S|beta6
+brca2_c5946delt,BRCA2,c.5946delT,13,32340300,T,-,0.0,Pathogenic,criteria provided multiple submitters,Hereditary breast and ovarian cancer,6174delT|del6174T|c.5946del|p.Ser1982Argfs
+mlh1_c350c_t,MLH1,c.350C>T,3,37038110,C,T,0.0,Pathogenic,criteria provided multiple submitters,Lynch syndrome,p.Thr117Met|T117M|p.Thr117Met
+apoe_e4,APOE,c.388T>C,19,45411941,T,C,0.15,Risk factor,criteria provided,Alzheimer disease,e4|epsilon4|epsilon 4|APOE4|p.Cys130Arg|C130R|p.Cys112Arg
+mthfr_c677t,MTHFR,c.665C>T,1,11856378,C,T,0.31,Benign,criteria provided multiple submitters,Homocystinuria,C677T|p.Ala222Val|A222V|MTHFR 677|677C>T
+cyp2c19_star2,CYP2C19,c.681G>A,10,96541616,G,A,0.15,Benign,criteria provided multiple submitters,Poor drug metabolism,CYP2C19*2|*2|star2|p.Pro227Pro|P227P|c.681G>A
+g6pd_c563c_t,G6PD,c.563C>T,X,154532432,C,T,0.02,Likely benign,criteria provided,G6PD deficiency,Mediterranean|C563T|p.Ser188Phe|S188F|c.563C>T
