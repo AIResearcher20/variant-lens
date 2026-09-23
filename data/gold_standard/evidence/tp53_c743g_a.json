@@ -10,23 +10,21 @@
     "4847125",
     "4839501"
   ],
-  "clinvar_linked_pmids": [],
-  "reference_pmids": [],
-  "pubmed_candidate_pmids": [
-    "41168874",
-    "36457625"
+  "clinvar_linked_pmids": [
+    "26110198",
+    "25741868"
   ],
+  "reference_pmids": [],
+  "pubmed_candidate_pmids": [],
   "candidate_pmids": [
-    "41168874",
-    "36457625"
+    "26110198",
+    "25741868"
   ],
   "titles": {
-    "41168874": "Hypopharyngeal squamous cell carcinoma in a patient with germline TP53 c.743G > A (p.Arg248Gln) variant: a case report.",
-    "36457625": "12-Year-Old Girl Diagnosed With Li-Fraumeni Syndrome and Concomitant Adrenocortical Carcinoma (ACC)."
+    "25741868": "Standards and guidelines for the interpretation of sequence variants: a joint consensus recommendation of the American College of Medical Genetics and Genomics and the Association for Molecular Pathology."
   },
   "years": {
-    "41168874": 2025,
-    "36457625": 2022
+    "25741868": 2015
   },
   "label_source": "ClinVar-linked citations filtered by variant token",
   "candidate_source": "ClinVar elink and PubMed esearch",
