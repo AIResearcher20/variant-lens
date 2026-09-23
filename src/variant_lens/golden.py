@@ -14,12 +14,13 @@ as distractors for the retrieval benchmark.
 
 The third is the variant itself. Its HGVS string is reduced to a small
 set of tokens, and those tokens are matched against titles and
-abstracts with word boundaries. Only articles that mention at least one
-of these tokens are kept in the reference set.
+abstracts with word boundaries. Only articles that mention at least
+one of these tokens are kept in the reference set.
 
-The output of this module is a dictionary that can be serialised to
-JSON. It is written to the evidence directory by the command line
-script.
+The module does not make assumptions about network conditions. When a
+ClinVar or PubMed lookup fails, the corresponding list is left empty
+and a flag records that the record is incomplete. The caller decides
+whether to keep such a record in the golden set.
 """
 
 from __future__ import annotations
@@ -46,7 +47,7 @@ def variant_tokens(hgvs: str) -> list[str]:
     The full HGVS is rarely written out in an abstract. Authors write
     the short form, the position alone, or a legacy name. The tokens
     returned here cover the common cases. Matching is later done with
-    word boundaries, so a token such as ``68`` will not match ``680``.
+    word boundaries, so a token such as 68 will not match 680.
     """
     tokens: list[str] = []
     seen: set[str] = set()
@@ -97,21 +98,6 @@ def is_reference_passage(passage: Passage, tokens: Iterable[str]) -> bool:
     return mentions_variant(combined, tokens)
 
 
-def collect_clinvar_pmids(hgvs: str) -> dict[str, Any]:
-    """
-    Fetch the ClinVar record identifiers and their linked PubMed IDs.
-
-    This is a thin wrapper around the clinvar module. It exists so that
-    golden.py has a single point of contact with the network layer and
-    tests can replace it easily.
-    """
-    try:
-        return fetch_clinvar_pmids(hgvs)
-    except Exception as exc:
-        logger.warning("ClinVar lookup failed for %s: %s", hgvs, exc)
-        return {"uids": [], "pmids": []}
-
-
 def fetch_articles(pmids: list[str]) -> list[Passage]:
     """
     Retrieve passages for a specific list of PMIDs.
@@ -152,23 +138,22 @@ def build_evidence_record(
 
     The function performs the network calls, applies the variant filter
     to the ClinVar linked identifiers, and merges everything into a
-    dictionary. Variants whose reference set ends up empty are still
-    returned, with an empty list. The caller decides what to do with
-    them.
+    dictionary. Records with an empty reference set or an incomplete
+    ClinVar lookup are still returned. The caller decides what to do
+    with them.
     """
-    query = f"{gene} {hgvs}".strip()
-    if phenotype:
-        query_full = f"{query} {phenotype}".strip()
-    else:
-        query_full = query
+    query_base = f"{gene} {hgvs}".strip()
+    query_full = f"{query_base} {phenotype}".strip() if phenotype else query_base
 
     if lookup_clinvar:
-        clinvar_result = collect_clinvar_pmids(hgvs)
+        clinvar_result = fetch_clinvar_pmids(hgvs)
         clinvar_uids = clinvar_result.get("uids", [])
         clinvar_pmids = clinvar_result.get("pmids", [])
+        clinvar_complete = clinvar_result.get("complete", True)
     else:
         clinvar_uids = []
         clinvar_pmids = []
+        clinvar_complete = True
 
     tokens = variant_tokens(hgvs)
 
@@ -216,6 +201,7 @@ def build_evidence_record(
         "query": query_full,
         "clinvar_uids": clinvar_uids,
         "clinvar_linked_pmids": clinvar_pmids,
+        "clinvar_complete": clinvar_complete,
         "reference_pmids": reference_pmids,
         "pubmed_candidate_pmids": pubmed_candidate_pmids,
         "candidate_pmids": candidate_pmids,
