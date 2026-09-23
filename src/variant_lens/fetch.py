@@ -6,9 +6,8 @@ Never raises for individual source failures. Raises FetchError only when
 the fetch layer itself cannot operate.
 
 PubMed requests are paced conservatively and retried on transient
-failures. The default pacing leaves a wide margin below the NCBI rate
-limit so that a run over several hundred identifiers completes without
-being throttled.
+failures. Pacing, batching, and retry parameters are read from config
+so that they can be adjusted without editing this module.
 """
 
 from __future__ import annotations
@@ -28,6 +27,10 @@ from .config import (
     FETCH_RETRIES,
     FETCH_TIMEOUT,
     STRICT_FETCH,
+    PUBMED_ATTEMPTS,
+    PUBMED_BACKOFF_BASE,
+    PUBMED_BATCH_SIZE,
+    pubmed_pause,
 )
 from .schema import Passage, RawEvidence
 
@@ -43,12 +46,6 @@ _BASE_URLS = {
     "pubmed": "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi",
     "pubmed_fetch": "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi",
 }
-
-
-PUBMED_PAUSE = 1.0
-PUBMED_BATCH_SIZE = 50
-PUBMED_ATTEMPTS = 4
-PUBMED_BACKOFF_BASE = 5.0
 
 
 class FetchError(Exception):
@@ -76,7 +73,7 @@ def fetch_pubmed_passages(
     pmids = _pubmed_search(query, max_results)
     if not pmids:
         return []
-    return _pubmed_fetch_abstracts(pmids)
+    return fetch_pubmed_abstracts_by_pmids(pmids)
 
 
 def fetch_pubmed_abstracts_by_pmids(pmids: list[str]) -> list[Passage]:
@@ -92,6 +89,7 @@ def fetch_pubmed_abstracts_by_pmids(pmids: list[str]) -> list[Passage]:
 
     cache = Cache()
     passages: list[Passage] = []
+    pause = pubmed_pause()
 
     for start in range(0, len(pmids), PUBMED_BATCH_SIZE):
         batch = pmids[start:start + PUBMED_BATCH_SIZE]
@@ -115,7 +113,7 @@ def fetch_pubmed_abstracts_by_pmids(pmids: list[str]) -> list[Passage]:
             ]
         })
         passages.extend(batch_passages)
-        time.sleep(PUBMED_PAUSE)
+        time.sleep(pause)
 
     return passages
 
@@ -146,10 +144,6 @@ def _pubmed_search(query: str, max_results: int) -> list[str]:
     pmids = list(payload.get("esearchresult", {}).get("idlist", []))
     cache.set(key, {"pmids": pmids})
     return pmids
-
-
-def _pubmed_fetch_abstracts(pmids: list[str]) -> list[Passage]:
-    return fetch_pubmed_abstracts_by_pmids(pmids)
 
 
 def _fetch_batch(pmids: list[str]) -> list[Passage]:
