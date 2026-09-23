@@ -14,11 +14,25 @@
     "ref_vcf": "G",
     "alt_vcf": "A"
   },
-  "clinvar_linked_pmids": [],
+  "clinvar_linked_pmids": [
+    "18004210",
+    "19444287",
+    "25741868",
+    "8195181",
+    "9093256",
+    "4544753"
+  ],
   "clinvar_found": true,
   "reference_pmids": [],
   "pubmed_candidate_pmids": [],
-  "candidate_pmids": [],
+  "candidate_pmids": [
+    "18004210",
+    "19444287",
+    "25741868",
+    "8195181",
+    "9093256",
+    "4544753"
+  ],
   "titles": {},
   "years": {},
   "label_source": "ClinVar-linked citations filtered by variant token",
