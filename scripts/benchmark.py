@@ -2,7 +2,8 @@
 Benchmark runner.
 
 Compares BM25, dense, and hybrid retrieval against the golden set.
-Dense and hybrid strategies are stubs in the MVP; only BM25 runs.
+Dense retrieval falls back to an empty result when its backend is not
+installed, in which case hybrid uses BM25 only.
 """
 
 from __future__ import annotations
@@ -14,7 +15,7 @@ import math
 from pathlib import Path
 from typing import Any
 
-from variant_lens.retrieve.bm25 import bm25_retrieve
+from variant_lens.retrieve import retrieve
 from variant_lens.schema import Passage, RetrievalStrategy
 
 
@@ -119,11 +120,17 @@ def ndcg_at_k(retrieved: list[str], relevant: set[str], k: int) -> float:
     return dcg / idcg if idcg > 0 else 0.0
 
 
-def run_bm25(
+def run_strategy(
+    strategy: RetrievalStrategy,
     variants: list[dict[str, str]],
     golden_dir: Path,
     top_k: int,
 ) -> dict[str, Any]:
+    """
+    Run a single retrieval strategy against the golden set.
+
+    Returns a summary dict with mean metrics and per-query results.
+    """
     corpus = build_corpus(golden_dir)
 
     results = {
@@ -140,7 +147,12 @@ def run_bm25(
         relevant = set(evidence.get("relevant_pmids", []))
         query = evidence.get("query") or variant.get("hgvs", "")
 
-        retrieved_passages = bm25_retrieve(query, corpus, top_k=top_k)
+        retrieved_passages = retrieve(
+            query=query,
+            passages=corpus,
+            strategy=strategy,
+            top_k=top_k,
+        )
         retrieved_pmids = [p.pmid for p in retrieved_passages]
 
         r5 = recall_at_k(retrieved_pmids, relevant, 5)
@@ -180,17 +192,28 @@ def main() -> None:
     args = parse_args()
 
     variants = load_variants(args.golden_set)
-    bm25_results = run_bm25(variants, args.golden_set, args.top_k)
+
+    strategies = [
+        RetrievalStrategy.BM25,
+        RetrievalStrategy.DENSE,
+        RetrievalStrategy.HYBRID,
+    ]
 
     report = {
         "metadata": {
             "golden_set_size": len(variants),
             "top_k": args.top_k,
         },
-        "strategies": {
-            RetrievalStrategy.BM25.value: bm25_results,
-        },
+        "strategies": {},
     }
+
+    for strategy in strategies:
+        report["strategies"][strategy.value] = run_strategy(
+            strategy,
+            variants,
+            args.golden_set,
+            args.top_k,
+        )
 
     args.output.write_text(json.dumps(report, indent=2, sort_keys=True))
     print(f"Results written to {args.output}")
