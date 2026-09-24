@@ -20,6 +20,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
@@ -51,7 +53,7 @@ jobs:
           ls -lh evaluation_results.json
           echo
           echo "Plots:"
-          ls -lh docs/images/
+          ls -lh docs/images/ || echo "no plots directory"
           echo
           echo "Summary:"
           python - <<'PY'
@@ -78,5 +80,6 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add evaluation_results.json docs/images/
           git diff --cached --quiet || git commit -m "Update benchmark results and plots"
+          git pull --rebase origin main
           git push
         continue-on-error: true
