@@ -17,6 +17,7 @@ in restricted environments and is reported explicitly in the output.
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import math
 from pathlib import Path
@@ -55,8 +56,6 @@ def parse_args() -> argparse.Namespace:
 
 def load_variants(golden_dir: Path) -> list[dict[str, str]]:
     csv_path = golden_dir / "variants.csv"
-    import csv
-
     with csv_path.open(newline="", encoding="utf-8") as handle:
         return list(csv.DictReader(handle))
 
@@ -125,6 +124,29 @@ def build_corpus(records: list[dict[str, Any]]) -> list[Passage]:
             )
 
     return passages
+
+
+def build_per_variant(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """
+    Summarise each eligible variant for reporting purposes.
+
+    The result records the size of the reference set, the number of
+    candidate publications, and the size of the intersection. These
+    numbers feed the reference-size plot and make it possible to see
+    which variants dominate the corpus.
+    """
+    summary: list[dict[str, Any]] = []
+    for record in records:
+        reference = record.get("reference_pmids", [])
+        candidates = record.get("candidate_pmids", [])
+        summary.append({
+            "variant_id": record["variant_id"],
+            "gene": record.get("gene", ""),
+            "reference_count": len(reference),
+            "candidate_count": len(candidates),
+            "reference_in_corpus": len(set(reference) & set(candidates)),
+        })
+    return summary
 
 
 def recall_at_k(retrieved: list[str], relevant: set[str], k: int) -> float:
@@ -239,6 +261,7 @@ def main() -> None:
             "corpus_size": len(corpus),
             "top_k": args.top_k,
         },
+        "per_variant": build_per_variant(records),
         "strategies": {},
     }
 
