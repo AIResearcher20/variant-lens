@@ -5,6 +5,64 @@
     "golden_set_size": 10,
     "top_k": 50
   },
+  "per_variant": [
+    {
+      "candidate_count": 191,
+      "gene": "BRCA1",
+      "reference_count": 65,
+      "reference_in_corpus": 65,
+      "variant_id": "brca1_c68_69delag"
+    },
+    {
+      "candidate_count": 112,
+      "gene": "TP53",
+      "reference_count": 8,
+      "reference_in_corpus": 8,
+      "variant_id": "tp53_c743g_a"
+    },
+    {
+      "candidate_count": 285,
+      "gene": "CFTR",
+      "reference_count": 134,
+      "reference_in_corpus": 134,
+      "variant_id": "cftr_f508del"
+    },
+    {
+      "candidate_count": 83,
+      "gene": "BRCA2",
+      "reference_count": 21,
+      "reference_in_corpus": 21,
+      "variant_id": "brca2_c5946delt"
+    },
+    {
+      "candidate_count": 128,
+      "gene": "MLH1",
+      "reference_count": 5,
+      "reference_in_corpus": 5,
+      "variant_id": "mlh1_c350c_t"
+    },
+    {
+      "candidate_count": 93,
+      "gene": "APOE",
+      "reference_count": 22,
+      "reference_in_corpus": 22,
+      "variant_id": "apoe_e4"
+    },
+    {
+      "candidate_count": 141,
+      "gene": "MTHFR",
+      "reference_count": 69,
+      "reference_in_corpus": 69,
+      "variant_id": "mthfr_c677t"
+    },
+    {
+      "candidate_count": 6,
+      "gene": "CYP2C19",
+      "reference_count": 1,
+      "reference_in_corpus": 1,
+      "variant_id": "cyp2c19_star2"
+    }
+  ],
   "strategies": {
     "bm25": {
       "per_query": [
