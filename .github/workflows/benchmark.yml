@@ -72,4 +72,4 @@ jobs:
           else
             git commit -m "Update benchmark results"
             git push
-          fiج
+          fi
