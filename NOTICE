@@ -15,3 +15,23 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
 implied. See the License for the specific language governing
 permissions and limitations under the License.
+
+This project uses data from the following external sources:
+
+- ClinVar, National Center for Biotechnology Information (NCBI),
+  National Library of Medicine. Accessed via the ClinVar FTP site.
+  https://ftp.ncbi.nlm.nih.gov/pub/clinvar/
+
+- PubMed, National Center for Biotechnology Information (NCBI),
+  National Library of Medicine. Accessed via NCBI E-utilities.
+  https://eutils.ncbi.nlm.nih.gov/
+
+- gnomAD, Genome Aggregation Database. Accessed via the gnomAD API.
+  https://gnomad.broadinstitute.org/
+
+- MyVariant.info, accessed via the public API.
+  https://myvariant.info/
+
+These sources are used under their respective terms of use. Citation
+of the original databases is recommended when the results of
+VariantLens are published.
