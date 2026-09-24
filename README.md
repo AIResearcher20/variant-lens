@@ -208,6 +208,10 @@ variants, corpus size of 963 passages, top-k of 50.
 | Dense    | 0.170    | 0.234     | 0.442 | 0.357   |
 | Hybrid   | 0.169    | 0.187     | 0.449 | 0.247   |
 
+![Retrieval performance by strategy](docs/images/benchmark_results.png)
+
+![Reference set and corpus size per variant](docs/images/reference_sizes.png)
+
 Dense retrieval with PubMedBERT improves nDCG@10 by roughly 1.85 times
 over BM25, and improves Recall@10 by about 44 percent. Hybrid
 retrieval, which combines both strategies through Reciprocal Rank
