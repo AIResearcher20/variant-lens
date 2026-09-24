@@ -1,0 +1,280 @@
+{
+  "metadata": {
+    "corpus_size": 963,
+    "eligible_size": 8,
+    "golden_set_size": 10,
+    "top_k": 50
+  },
+  "strategies": {
+    "bm25": {
+      "per_query": [
+        {
+          "mrr": 1.0,
+          "ndcg@10": 0.501749354207772,
+          "query": "BRCA1 c.68_69delAG Hereditary breast and ovarian cancer",
+          "recall@10": 0.06153846153846154,
+          "recall@5": 0.03076923076923077,
+          "relevant_count": 65,
+          "retrieved_count": 50,
+          "variant_id": "brca1_c68_69delag"
+        },
+        {
+          "mrr": 1.0,
+          "ndcg@10": 0.2529427027676571,
+          "query": "TP53 c.743G>A Li-Fraumeni syndrome",
+          "recall@10": 0.125,
+          "recall@5": 0.125,
+          "relevant_count": 8,
+          "retrieved_count": 50,
+          "variant_id": "tp53_c743g_a"
+        },
+        {
+          "mrr": 0.043478260869565216,
+          "ndcg@10": 0.0,
+          "query": "CFTR c.1521_1523delCTT Cystic fibrosis",
+          "recall@10": 0.0,
+          "recall@5": 0.0,
+          "relevant_count": 134,
+          "retrieved_count": 50,
+          "variant_id": "cftr_f508del"
+        },
+        {
+          "mrr": 1.0,
+          "ndcg@10": 0.22009176629808017,
+          "query": "BRCA2 c.5946delT Hereditary breast and ovarian cancer",
+          "recall@10": 0.047619047619047616,
+          "recall@5": 0.047619047619047616,
+          "relevant_count": 21,
+          "retrieved_count": 50,
+          "variant_id": "brca2_c5946delt"
+        },
+        {
+          "mrr": 0.0,
+          "ndcg@10": 0.0,
+          "query": "MLH1 c.350C>T Lynch syndrome",
+          "recall@10": 0.0,
+          "recall@5": 0.0,
+          "relevant_count": 5,
+          "retrieved_count": 50,
+          "variant_id": "mlh1_c350c_t"
+        },
+        {
+          "mrr": 0.1,
+          "ndcg@10": 0.06362078819895171,
+          "query": "APOE c.388T>C Alzheimer disease",
+          "recall@10": 0.045454545454545456,
+          "recall@5": 0.0,
+          "relevant_count": 22,
+          "retrieved_count": 50,
+          "variant_id": "apoe_e4"
+        },
+        {
+          "mrr": 0.16666666666666666,
+          "ndcg@10": 0.07839826897867533,
+          "query": "MTHFR c.665C>T Homocystinuria",
+          "recall@10": 0.014492753623188406,
+          "recall@5": 0.0,
+          "relevant_count": 69,
+          "retrieved_count": 50,
+          "variant_id": "mthfr_c677t"
+        },
+        {
+          "mrr": 0.25,
+          "ndcg@10": 0.43067655807339306,
+          "query": "CYP2C19 c.681G>A Poor drug metabolism",
+          "recall@10": 1.0,
+          "recall@5": 1.0,
+          "relevant_count": 1,
+          "retrieved_count": 50,
+          "variant_id": "cyp2c19_star2"
+        }
+      ],
+      "summary": {
+        "mrr": 0.445018115942029,
+        "ndcg@10": 0.19343492981556618,
+        "recall@10": 0.1617631010294054,
+        "recall@5": 0.1504235347985348
+      }
+    },
+    "dense": {
+      "per_query": [
+        {
+          "mrr": 1.0,
+          "ndcg@10": 0.7312625444731047,
+          "query": "BRCA1 c.68_69delAG Hereditary breast and ovarian cancer",
+          "recall@10": 0.1076923076923077,
+          "recall@5": 0.06153846153846154,
+          "relevant_count": 65,
+          "retrieved_count": 50,
+          "variant_id": "brca1_c68_69delag"
+        },
+        {
+          "mrr": 0.1,
+          "ndcg@10": 0.07311683844390994,
+          "query": "TP53 c.743G>A Li-Fraumeni syndrome",
+          "recall@10": 0.125,
+          "recall@5": 0.0,
+          "relevant_count": 8,
+          "retrieved_count": 50,
+          "variant_id": "tp53_c743g_a"
+        },
+        {
+          "mrr": 0.25,
+          "ndcg@10": 0.09478836436955078,
+          "query": "CFTR c.1521_1523delCTT Cystic fibrosis",
+          "recall@10": 0.007462686567164179,
+          "recall@5": 0.007462686567164179,
+          "relevant_count": 134,
+          "retrieved_count": 50,
+          "variant_id": "cftr_f508del"
+        },
+        {
+          "mrr": 0.3333333333333333,
+          "ndcg@10": 0.39486008436280445,
+          "query": "BRCA2 c.5946delT Hereditary breast and ovarian cancer",
+          "recall@10": 0.23809523809523808,
+          "recall@5": 0.047619047619047616,
+          "relevant_count": 21,
+          "retrieved_count": 50,
+          "variant_id": "brca2_c5946delt"
+        },
+        {
+          "mrr": 0.022727272727272728,
+          "ndcg@10": 0.0,
+          "query": "MLH1 c.350C>T Lynch syndrome",
+          "recall@10": 0.0,
+          "recall@5": 0.0,
+          "relevant_count": 5,
+          "retrieved_count": 50,
+          "variant_id": "mlh1_c350c_t"
+        },
+        {
+          "mrr": 1.0,
+          "ndcg@10": 0.8603818544462509,
+          "query": "APOE c.388T>C Alzheimer disease",
+          "recall@10": 0.36363636363636365,
+          "recall@5": 0.22727272727272727,
+          "relevant_count": 22,
+          "retrieved_count": 50,
+          "variant_id": "apoe_e4"
+        },
+        {
+          "mrr": 0.5,
+          "ndcg@10": 0.2051166673279436,
+          "query": "MTHFR c.665C>T Homocystinuria",
+          "recall@10": 0.028985507246376812,
+          "recall@5": 0.014492753623188406,
+          "relevant_count": 69,
+          "retrieved_count": 50,
+          "variant_id": "mthfr_c677t"
+        },
+        {
+          "mrr": 0.3333333333333333,
+          "ndcg@10": 0.5,
+          "query": "CYP2C19 c.681G>A Poor drug metabolism",
+          "recall@10": 1.0,
+          "recall@5": 1.0,
+          "relevant_count": 1,
+          "retrieved_count": 50,
+          "variant_id": "cyp2c19_star2"
+        }
+      ],
+      "summary": {
+        "mrr": 0.44242424242424244,
+        "ndcg@10": 0.3574407941779455,
+        "recall@10": 0.2338590129046813,
+        "recall@5": 0.16979820957757363
+      }
+    },
+    "hybrid": {
+      "per_query": [
+        {
+          "mrr": 1.0,
+          "ndcg@10": 0.5360735436824436,
+          "query": "BRCA1 c.68_69delAG Hereditary breast and ovarian cancer",
+          "recall@10": 0.07692307692307693,
+          "recall@5": 0.03076923076923077,
+          "relevant_count": 65,
+          "retrieved_count": 50,
+          "variant_id": "brca1_c68_69delag"
+        },
+        {
+          "mrr": 0.2,
+          "ndcg@10": 0.09785159463516042,
+          "query": "TP53 c.743G>A Li-Fraumeni syndrome",
+          "recall@10": 0.125,
+          "recall@5": 0.125,
+          "relevant_count": 8,
+          "retrieved_count": 50,
+          "variant_id": "tp53_c743g_a"
+        },
+        {
+          "mrr": 0.0625,
+          "ndcg@10": 0.0,
+          "query": "CFTR c.1521_1523delCTT Cystic fibrosis",
+          "recall@10": 0.0,
+          "recall@5": 0.0,
+          "relevant_count": 134,
+          "retrieved_count": 50,
+          "variant_id": "cftr_f508del"
+        },
+        {
+          "mrr": 1.0,
+          "ndcg@10": 0.2934556883974402,
+          "query": "BRCA2 c.5946delT Hereditary breast and ovarian cancer",
+          "recall@10": 0.09523809523809523,
+          "recall@5": 0.047619047619047616,
+          "relevant_count": 21,
+          "retrieved_count": 50,
+          "variant_id": "brca2_c5946delt"
+        },
+        {
+          "mrr": 0.0,
+          "ndcg@10": 0.0,
+          "query": "MLH1 c.350C>T Lynch syndrome",
+          "recall@10": 0.0,
+          "recall@5": 0.0,
+          "relevant_count": 5,
+          "retrieved_count": 50,
+          "variant_id": "mlh1_c350c_t"
+        },
+        {
+          "mrr": 0.5,
+          "ndcg@10": 0.4124497136428909,
+          "query": "APOE c.388T>C Alzheimer disease",
+          "recall@10": 0.18181818181818182,
+          "recall@5": 0.13636363636363635,
+          "relevant_count": 22,
+          "retrieved_count": 50,
+          "variant_id": "apoe_e4"
+        },
+        {
+          "mrr": 0.5,
+          "ndcg@10": 0.13886244387355454,
+          "query": "MTHFR c.665C>T Homocystinuria",
+          "recall@10": 0.014492753623188406,
+          "recall@5": 0.014492753623188406,
+          "relevant_count": 69,
+          "retrieved_count": 50,
+          "variant_id": "mthfr_c677t"
+        },
+        {
+          "mrr": 0.3333333333333333,
+          "ndcg@10": 0.5,
+          "query": "CYP2C19 c.681G>A Poor drug metabolism",
+          "recall@10": 1.0,
+          "recall@5": 1.0,
+          "relevant_count": 1,
+          "retrieved_count": 50,
+          "variant_id": "cyp2c19_star2"
+        }
+      ],
+      "summary": {
+        "mrr": 0.4494791666666667,
+        "ndcg@10": 0.24733662302893622,
+        "recall@10": 0.1866840134503178,
+        "recall@5": 0.1692805835468879
+      }
+    }
+  }
+}
